@@ -1,0 +1,28 @@
+[package]
+name = "ephemeris-core"
+version = "0.1.0"
+edition = "2021"
+description = "Message-level deniable encryption library using OTP + non-committing key wrapping"
+license = "MIT"
+repository = "https://github.com/BlkSword/Ephemeris"
+readme = "../README.md"
+keywords = ["encryption", "deniable", "otp", "cryptography", "privacy"]
+categories = ["cryptography", "data-structures"]
+
+[dependencies]
+aes = "0.8"
+ctr = "0.9"
+argon2 = "0.5"
+rand = "0.8"
+thiserror = "2"
+zeroize = { version = "1", features = ["zeroize_derive"] }
+subtle = "2"
+
+[dev-dependencies]
+proptest = "1"
+hex = "0.4"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "bench"
+harness = false

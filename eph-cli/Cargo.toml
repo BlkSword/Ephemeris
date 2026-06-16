@@ -1,0 +1,14 @@
+[package]
+name = "eph"
+version = "0.1.0"
+edition = "2021"
+description = "Ephemeris CLI — message-level deniable encryption tool"
+license = "MIT"
+
+[dependencies]
+ephemeris-core = { path = "../ephemeris-core" }
+clap = { version = "4", features = ["derive"] }
+rpassword = "7"
+anyhow = "1"
+hex = "0.4"
+zeroize = { version = "1", features = ["zeroize_derive"] }

@@ -1,0 +1,3 @@
+[workspace]
+members = ["ephemeris-core", "eph-cli", "ephemeris-python"]
+resolver = "2"
