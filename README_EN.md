@@ -6,6 +6,7 @@ Encrypt a message. Under duress, prove it decrypts to something else. No mathema
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.93%2B-orange.svg)](https://www.rust-lang.org)
+[![crates.io](https://img.shields.io/crates/v/ephemeris-core.svg)](https://crates.io/crates/ephemeris-core)
 [![Python](https://img.shields.io/badge/python-3.8%2B-blue.svg)](https://www.python.org)
 
 *中文版: [README.md](README.md)*
