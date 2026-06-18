@@ -5,7 +5,7 @@ edition = "2021"
 description = "Message-level deniable encryption library using OTP + non-committing key wrapping"
 license = "MIT"
 repository = "https://github.com/BlkSword/Ephemeris"
-readme = "../README.md"
+readme = "README.md"
 keywords = ["encryption", "deniable", "otp", "cryptography", "privacy"]
 categories = ["cryptography", "data-structures"]
 
