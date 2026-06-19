@@ -1,12 +1,19 @@
-//! Command-line argument definitions for the `eph` CLI using clap derive.
+//! Command-line argument definitions for the `eph` CLI.
 
 use clap::{Parser, Subcommand, ValueHint};
 
-/// Ephemeris — message-level deniable encryption.
+/// Ephemeris — message-level deniable encryption tool.
 ///
 /// Encrypt messages with information-theoretic security and
-/// plausible deniability. Under duress, you can prove the
-/// ciphertext decrypts to a harmless message.
+/// plausible deniability. Under duress, prove the ciphertext
+/// decrypts to a harmless message.
+///
+/// Examples:
+///   eph encrypt secret.txt secret.eph
+///   eph encrypt secret.txt secret.eph --armor   # base64 output
+///   eph decrypt secret.eph output.txt
+///   eph repudiate secret.eph cover.eph fake.txt
+///   eph genpass
 #[derive(Parser, Debug)]
 #[command(name = "eph", version, about, long_about = None)]
 pub struct Cli {
@@ -19,10 +26,10 @@ pub enum Command {
     /// Encrypt a file with deniable encryption
     Encrypt(EncryptArgs),
 
-    /// Decrypt a .eph file
+    /// Decrypt a .eph file (or armored text)
     Decrypt(DecryptArgs),
 
-    /// Repudiate: replace the key so the file decrypts to a harmless message
+    /// Repudiate: replace key — decrypts to harmless message under fake password
     Repudiate(RepudiateArgs),
 
     /// Show metadata about a .eph or .key file
@@ -30,9 +37,15 @@ pub enum Command {
 
     /// Generate a standalone .key file from a raw OTP key
     GenKey(GenKeyArgs),
+
+    /// Generate a strong random password
+    GenPass(GenPassArgs),
 }
 
-/// Shared options for all commands that accept a password.
+// ---------------------------------------------------------------------------
+// Shared options
+// ---------------------------------------------------------------------------
+
 #[derive(Debug, clap::Args)]
 pub struct PasswordOptions {
     /// Password (visible in process list — use only for scripting)
@@ -44,15 +57,14 @@ pub struct PasswordOptions {
     pub password_file: Option<String>,
 }
 
-/// Shared options for Argon2id parameters.
 #[derive(Debug, clap::Args)]
 pub struct Argon2Options {
-    /// Argon2id time cost (iterations) [default: 2]
+    /// Argon2id iterations [default: 2]
     #[arg(short = 't', long = "time-cost", default_value = "2")]
     pub time_cost: u32,
 
-    /// Argon2id memory cost in KiB [default: 19456 (~19 MiB)]
-    #[arg(short = 'm', long = "memory-cost", default_value = "19456")]
+    /// Argon2id memory in KiB [default: 37888 (~37 MiB)]
+    #[arg(short = 'm', long = "memory-cost", default_value = "37888")]
     pub memory_cost: u32,
 
     /// Argon2id parallelism (threads) [default: 1]
@@ -60,19 +72,31 @@ pub struct Argon2Options {
     pub parallelism: u32,
 }
 
+// ---------------------------------------------------------------------------
+// Subcommand args
+// ---------------------------------------------------------------------------
+
 #[derive(Debug, clap::Args)]
 pub struct EncryptArgs {
     /// Input file (plaintext). Use '-' for stdin.
     #[arg(value_hint = ValueHint::FilePath)]
     pub input: String,
 
-    /// Output .eph file
+    /// Output .eph file. Use '-' for stdout (implies --armor).
     #[arg(value_hint = ValueHint::FilePath)]
     pub output: String,
 
     /// Also write a standalone .key file
     #[arg(long = "key-file", value_hint = ValueHint::FilePath)]
     pub key_file: Option<String>,
+
+    /// Output in base64 armor format (for email/chat sharing)
+    #[arg(short = 'a', long = "armor")]
+    pub armor: bool,
+
+    /// Securely erase input file after encryption
+    #[arg(long = "shred")]
+    pub shred: bool,
 
     #[command(flatten)]
     pub password: PasswordOptions,
@@ -87,13 +111,17 @@ pub struct EncryptArgs {
 
 #[derive(Debug, clap::Args)]
 pub struct DecryptArgs {
-    /// Input .eph file. Use '-' for stdin.
+    /// Input .eph file (or armored text). Use '-' for stdin.
     #[arg(value_hint = ValueHint::FilePath)]
     pub input: String,
 
     /// Output file (plaintext). Use '-' for stdout.
     #[arg(value_hint = ValueHint::FilePath)]
     pub output: String,
+
+    /// Input is base64 armored format
+    #[arg(short = 'a', long = "armor")]
+    pub armor: bool,
 
     #[command(flatten)]
     pub password: PasswordOptions,
@@ -120,6 +148,10 @@ pub struct RepudiateArgs {
     #[arg(value_hint = ValueHint::FilePath)]
     pub fake_plaintext: String,
 
+    /// Output in base64 armor format
+    #[arg(short = 'a', long = "armor")]
+    pub armor: bool,
+
     #[command(flatten)]
     pub password: PasswordOptions,
 
@@ -140,7 +172,7 @@ pub struct InfoArgs {
 
 #[derive(Debug, clap::Args)]
 pub struct GenKeyArgs {
-    /// Raw OTP key (hex encoded). Use '-' for stdin (binary).
+    /// Raw OTP key input. Use '-' for stdin (binary).
     #[arg(value_hint = ValueHint::FilePath)]
     pub key_input: String,
 
@@ -157,4 +189,15 @@ pub struct GenKeyArgs {
     /// Overwrite output file if it exists
     #[arg(short = 'f', long = "force")]
     pub force: bool,
+}
+
+#[derive(Debug, clap::Args)]
+pub struct GenPassArgs {
+    /// Number of words (Diceware style) [default: 6]
+    #[arg(short = 'n', long = "words", default_value = "6")]
+    pub words: usize,
+
+    /// Show estimated entropy
+    #[arg(short = 'e', long = "entropy")]
+    pub show_entropy: bool,
 }

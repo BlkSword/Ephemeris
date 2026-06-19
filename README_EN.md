@@ -79,10 +79,18 @@ fake = ephemeris.repudiate_eph(data, b"Dear diary: boring day", b"diary-pw")
 
 ```bash
 cargo install eph
+
+# Basic operations
 eph encrypt secret.txt secret.eph
 eph decrypt secret.eph output.txt
 eph repudiate secret.eph cover.eph fake.txt
 eph info secret.eph
+
+# Advanced features
+eph encrypt secret.txt secret.eph --armor   # base64 armor (email/chat friendly)
+eph encrypt secret.txt secret.eph --shred   # securely erase original after encrypt
+eph gen-pass -n 6 -e                        # generate strong passphrase (6 words)
+eph decrypt msg.asc output.txt              # auto-detect binary or armor format
 ```
 
 ## Security Properties

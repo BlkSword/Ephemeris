@@ -12,3 +12,4 @@ rpassword = "7"
 anyhow = "1"
 hex = "0.4"
 zeroize = { version = "1", features = ["zeroize_derive"] }
+rand = "0.8"

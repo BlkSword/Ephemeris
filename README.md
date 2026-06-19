@@ -86,10 +86,17 @@ fake_data = ephemeris.repudiate_eph(data, b"Dear diary: boring day", b"diary-pw"
 ```bash
 cargo install eph
 
-eph encrypt secret.txt secret.eph      # 加密
-eph decrypt secret.eph output.txt      # 解密
-eph repudiate secret.eph cover.eph fake.txt  # 抵赖
-eph info secret.eph                    # 查看元数据
+# 基本操作
+eph encrypt secret.txt secret.eph           # 加密
+eph decrypt secret.eph output.txt           # 解密
+eph repudiate secret.eph cover.eph fake.txt # 抵赖
+eph info secret.eph                         # 查看元数据
+
+# 高级功能
+eph encrypt secret.txt secret.eph --armor   # base64 编码（适合邮件/聊天传输）
+eph encrypt secret.txt secret.eph --shred   # 加密后安全擦除原文
+eph gen-pass -n 6 -e                        # 生成强密码（6 词，显示熵值）
+eph decrypt msg.asc output.txt              # 自动识别二进制/armor 格式
 ```
 
 ## 安全属性
@@ -164,7 +171,8 @@ eph info secret.eph                    # 查看元数据
 │   ├── src/               # otp, keywrap, repudiate, format, params, error
 │   ├── tests/             # deniability(proptest), integration, security_audit
 │   └── benches/           # Criterion benchmarks
-├── eph-cli/               # CLI 工具 (encrypt/decrypt/repudiate/info)
+├── eph-cli/               # CLI 工具
+│   └── src/               # encrypt/decrypt/repudiate/info/gen-pass + armor + shred
 ├── ephemeris-python/      # Python 绑定 (PyO3 + maturin)
 └── docs/                  # 威胁模型 + 格式规范
 ```
