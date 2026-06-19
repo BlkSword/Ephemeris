@@ -177,6 +177,14 @@ eph decrypt msg.asc output.txt              # 自动识别二进制/armor 格式
 └── docs/                  # 威胁模型 + 格式规范
 ```
 
+## 性能优化
+
+- **分块 XOR**：OTP 加解密使用 8 字节（`u64`）分块处理，降低循环开销并便于编译器自动向量化。
+- **原地解密**：`decrypt` 直接复用解包出的 OTP key 缓冲区作为明文缓冲区，减少一次消息长度的堆分配。
+- **原地抵赖**：`repudiate` 通过 `wrap_key_inplace` 原地完成 AES-CTR 包装，避免额外的 `key.to_vec()` 拷贝。
+
+> 注：整体耗时仍主要由 Argon2id KDF 决定，上述优化主要降低大文件场景下的内存占用与峰值压力。
+
 ## 从源码构建
 
 ```bash

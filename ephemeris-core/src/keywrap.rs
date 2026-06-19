@@ -49,6 +49,35 @@ pub fn generate_salt() -> [u8; 16] {
     salt
 }
 
+/// Wrap (encrypt) an OTP key with a password-derived KEK in place.
+///
+/// The buffer is encrypted with AES-256-CTR using a key derived from
+/// `password` and `salt` via Argon2id. The output has the same length
+/// as the input buffer.
+///
+/// There is no authentication — the only way to know if unwrapping
+/// succeeded is to try decrypting the ciphertext.
+///
+/// The derived KEK is zeroized before this function returns.
+pub(crate) fn wrap_key_inplace(
+    blob: &mut [u8],
+    password: &[u8],
+    salt: &[u8; 16],
+    params: &Argon2Params,
+) -> Result<(), argon2::Error> {
+    let mut derived = params.derive_key(password, salt)?;
+    let aes_key: &[u8; 32] = derived[..32].try_into().unwrap();
+    let nonce: &[u8; 16] = derived[32..48].try_into().unwrap();
+
+    let mut cipher = Aes256Ctr::new(aes_key.into(), nonce.into());
+    cipher.apply_keystream(blob);
+
+    // Zeroize the derived KEK (contains AES key + nonce)
+    derived.zeroize();
+
+    Ok(())
+}
+
 /// Wrap (encrypt) an OTP key with a password-derived KEK.
 ///
 /// The `key` is encrypted with AES-256-CTR using a key derived from
@@ -65,17 +94,8 @@ pub fn wrap_key(
     salt: &[u8; 16],
     params: &Argon2Params,
 ) -> Result<Vec<u8>, argon2::Error> {
-    let mut derived = params.derive_key(password, salt)?;
-    let aes_key: &[u8; 32] = derived[..32].try_into().unwrap();
-    let nonce: &[u8; 16] = derived[32..48].try_into().unwrap();
-
-    let mut cipher = Aes256Ctr::new(aes_key.into(), nonce.into());
     let mut blob = key.to_vec();
-    cipher.apply_keystream(&mut blob);
-
-    // Zeroize the derived KEK (contains AES key + nonce)
-    derived.zeroize();
-
+    wrap_key_inplace(&mut blob, password, salt, params)?;
     Ok(blob)
 }
 

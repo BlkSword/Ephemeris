@@ -12,23 +12,17 @@ fn bench_encrypt(c: &mut Criterion) {
 
     group.bench_function("1KB", |b| {
         let msg = vec![0x42u8; 1024];
-        b.iter(|| {
-            encrypt(black_box(&msg), black_box(b"password"), black_box(&params))
-        })
+        b.iter(|| encrypt(black_box(&msg), black_box(b"password"), black_box(&params)))
     });
 
     group.bench_function("100KB", |b| {
         let msg = vec![0x42u8; 102_400];
-        b.iter(|| {
-            encrypt(black_box(&msg), black_box(b"password"), black_box(&params))
-        })
+        b.iter(|| encrypt(black_box(&msg), black_box(b"password"), black_box(&params)))
     });
 
     group.bench_function("1MB", |b| {
         let msg = vec![0x42u8; 1_048_576];
-        b.iter(|| {
-            encrypt(black_box(&msg), black_box(b"password"), black_box(&params))
-        })
+        b.iter(|| encrypt(black_box(&msg), black_box(b"password"), black_box(&params)))
     });
 
     group.finish();
@@ -44,7 +38,12 @@ fn bench_decrypt(c: &mut Criterion) {
         let result = encrypt(&msg, b"password", &params);
         group.bench_function(format!("{}B", size), |b| {
             b.iter(|| {
-                decrypt(black_box(&result.eph_file), black_box(b"password"), black_box(&params)).unwrap()
+                decrypt(
+                    black_box(&result.eph_file),
+                    black_box(b"password"),
+                    black_box(&params),
+                )
+                .unwrap()
             })
         });
     }
@@ -61,14 +60,24 @@ fn bench_argon2(c: &mut Criterion) {
     group.bench_function("low_memory", |b| {
         let salt = generate_salt();
         b.iter(|| {
-            let _ = unwrap_key(black_box(&vec![0u8; 64]), black_box(b"password"), black_box(&salt), black_box(&fast));
+            let _ = unwrap_key(
+                black_box(&vec![0u8; 64]),
+                black_box(b"password"),
+                black_box(&salt),
+                black_box(&fast),
+            );
         })
     });
 
     group.bench_function("default_37mb", |b| {
         let salt = generate_salt();
         b.iter(|| {
-            let _ = unwrap_key(black_box(&vec![0u8; 64]), black_box(b"password"), black_box(&salt), black_box(&default));
+            let _ = unwrap_key(
+                black_box(&vec![0u8; 64]),
+                black_box(b"password"),
+                black_box(&salt),
+                black_box(&default),
+            );
         })
     });
 
@@ -92,7 +101,8 @@ fn bench_repudiate(c: &mut Criterion) {
                     black_box(&fake),
                     black_box(b"fake"),
                     black_box(&params),
-                ).unwrap()
+                )
+                .unwrap()
             })
         });
     }

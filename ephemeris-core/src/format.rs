@@ -122,7 +122,7 @@ pub fn parse_eph(data: &[u8]) -> Result<EphFile<'_>, FormatError> {
     }
 
     let ct_start = key_end;
-    let ciphertext_len = data.len().checked_sub(ct_start).unwrap_or(0);
+    let ciphertext_len = data.len().saturating_sub(ct_start);
 
     // OTP mode invariant: key_blob_len == ciphertext_len
     if flags == FLAG_OTP_MODE && key_blob_len != ciphertext_len {
@@ -249,15 +249,17 @@ mod tests {
     use super::*;
 
     fn make_test_salt() -> [u8; 16] {
-        [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-         0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F, 0x10]
+        [
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E,
+            0x0F, 0x10,
+        ]
     }
 
     #[test]
     fn build_and_parse_eph_roundtrip() {
         let salt = make_test_salt();
         let key_blob = b"AAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-        let ct       = b"BBBBBBBBBBBBBBBBBBBBBBBBBBBB";
+        let ct = b"BBBBBBBBBBBBBBBBBBBBBBBBBBBB";
 
         let data = build_eph(&salt, key_blob, ct);
         let parsed = parse_eph(&data).unwrap();

@@ -51,7 +51,9 @@ fn file_format_consistency() {
     // Verify we can extract and manually decrypt
     let otp_key = unwrap_key(parsed.key_blob, pw, &parsed.salt, &params).unwrap();
     // Manual XOR for verification
-    let plaintext: Vec<u8> = parsed.ciphertext.iter()
+    let plaintext: Vec<u8> = parsed
+        .ciphertext
+        .iter()
         .zip(otp_key.iter())
         .map(|(c, k)| c ^ k)
         .collect();
@@ -73,7 +75,9 @@ fn key_file_standalone_usage() {
 
     // Verify independent decryption
     let otp_key = unwrap_key(key_blob, pw, &salt, &params).unwrap();
-    let decrypted: Vec<u8> = parsed_eph.ciphertext.iter()
+    let decrypted: Vec<u8> = parsed_eph
+        .ciphertext
+        .iter()
         .zip(otp_key.iter())
         .map(|(c, k)| c ^ k)
         .collect();
@@ -140,7 +144,11 @@ fn argon2_default_params_work() {
 
 #[test]
 fn decrypt_malformed_file_returns_err() {
-    let result = decrypt(b"not an eph file at all!", b"pw", &Argon2Params::low_memory());
+    let result = decrypt(
+        b"not an eph file at all!",
+        b"pw",
+        &Argon2Params::low_memory(),
+    );
     assert!(result.is_err());
 }
 

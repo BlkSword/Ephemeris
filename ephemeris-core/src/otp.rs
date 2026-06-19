@@ -18,6 +18,32 @@
 use rand::RngCore;
 use zeroize::Zeroize;
 
+/// XOR `src` into `dst` in place (`dst ^= src`).
+///
+/// Processes data in 8-byte chunks to reduce loop overhead and help the
+/// compiler auto-vectorize the hot loop. Any trailing bytes are handled
+/// with a byte-by-byte fallback.
+///
+/// Panics if `dst.len() != src.len()`.
+pub(crate) fn xor_in_place(dst: &mut [u8], src: &[u8]) {
+    assert_eq!(dst.len(), src.len(), "xor_in_place: length mismatch");
+
+    let mut dst_chunks = dst.chunks_exact_mut(8);
+    let mut src_chunks = src.chunks_exact(8);
+
+    for (d_chunk, s_chunk) in dst_chunks.by_ref().zip(src_chunks.by_ref()) {
+        let d = u64::from_le_bytes(d_chunk.try_into().unwrap());
+        let s = u64::from_le_bytes(s_chunk.try_into().unwrap());
+        d_chunk.copy_from_slice(&(d ^ s).to_le_bytes());
+    }
+
+    let dst_rem = dst_chunks.into_remainder();
+    let src_rem = src_chunks.remainder();
+    for (d, s) in dst_rem.iter_mut().zip(src_rem.iter()) {
+        *d ^= s;
+    }
+}
+
 /// Encrypt `plaintext` using a randomly generated one-time pad key.
 ///
 /// Returns `(ciphertext, otp_key)` where both are the same length as `plaintext`.
@@ -33,11 +59,8 @@ pub(crate) fn otp_encrypt(plaintext: &[u8]) -> (Vec<u8>, Vec<u8>) {
     rand::rngs::OsRng.fill_bytes(&mut key);
 
     // C = P ⊕ K
-    let ciphertext: Vec<u8> = plaintext
-        .iter()
-        .zip(key.iter())
-        .map(|(p, k)| p ^ k)
-        .collect();
+    let mut ciphertext = plaintext.to_vec();
+    xor_in_place(&mut ciphertext, &key);
 
     (ciphertext, key)
 }
@@ -48,17 +71,36 @@ pub(crate) fn otp_encrypt(plaintext: &[u8]) -> (Vec<u8>, Vec<u8>) {
 /// ciphertext.
 ///
 /// Returns `Err` if lengths differ instead of panicking.
+#[cfg(test)]
 pub(crate) fn otp_decrypt(ciphertext: &[u8], key: &[u8]) -> Result<Vec<u8>, &'static str> {
     if ciphertext.len() != key.len() {
         return Err("ciphertext and key must have equal length");
     }
 
     // P = C ⊕ K
-    Ok(ciphertext
-        .iter()
-        .zip(key.iter())
-        .map(|(c, k)| c ^ k)
-        .collect())
+    let mut plaintext = key.to_vec();
+    xor_in_place(&mut plaintext, ciphertext);
+    Ok(plaintext)
+}
+
+/// Decrypt `ciphertext` by consuming the OTP key buffer in place.
+///
+/// This avoids allocating a separate plaintext buffer: the key buffer is
+/// reused to store the returned plaintext. The caller is responsible for
+/// zeroizing the returned buffer when it is no longer needed.
+///
+/// Returns `Err` if lengths differ instead of panicking.
+pub(crate) fn otp_decrypt_in_place(
+    ciphertext: &[u8],
+    mut key: Vec<u8>,
+) -> Result<Vec<u8>, &'static str> {
+    if ciphertext.len() != key.len() {
+        return Err("ciphertext and key must have equal length");
+    }
+
+    // P = C ⊕ K, reusing the key buffer as the plaintext buffer
+    xor_in_place(&mut key, ciphertext);
+    Ok(key)
 }
 
 /// Zeroize an OTP key buffer after use.
@@ -130,7 +172,10 @@ mod tests {
         let key = vec![0u8; 5];
         let result = otp_decrypt(&ct, &key);
         assert!(result.is_err());
-        assert_eq!(result.unwrap_err(), "ciphertext and key must have equal length");
+        assert_eq!(
+            result.unwrap_err(),
+            "ciphertext and key must have equal length"
+        );
     }
 
     #[test]

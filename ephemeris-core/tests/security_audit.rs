@@ -21,8 +21,11 @@ fn distinguish_real_vs_fake_by_entropy() {
         let result = encrypt(msg_40, pw_real, &params);
         real_files.push(result.eph_file);
         if i > 0 {
-            assert_ne!(real_files[i][4..20], real_files[0][4..20],
-                "Different encryptions should have different salts");
+            assert_ne!(
+                real_files[i][4..20],
+                real_files[0][4..20],
+                "Different encryptions should have different salts"
+            );
         }
     }
 
@@ -33,27 +36,44 @@ fn distinguish_real_vs_fake_by_entropy() {
         let fake_eph = repudiate_eph(&result.eph_file, fake_40, pw_fake, &params).unwrap();
         let fake_parsed = parse_eph(&fake_eph).unwrap();
         assert_eq!(orig_salt, fake_parsed.salt, "Salt preserved in repudiate");
-        assert_eq!(parse_eph(&result.eph_file).unwrap().ciphertext,
-                   fake_parsed.ciphertext, "Ciphertext preserved");
-        assert_ne!(parse_eph(&result.eph_file).unwrap().key_blob,
-                   fake_parsed.key_blob, "Key blob differs");
+        assert_eq!(
+            parse_eph(&result.eph_file).unwrap().ciphertext,
+            fake_parsed.ciphertext,
+            "Ciphertext preserved"
+        );
+        assert_ne!(
+            parse_eph(&result.eph_file).unwrap().key_blob,
+            fake_parsed.key_blob,
+            "Key blob differs"
+        );
         assert_eq!(result.eph_file.len(), fake_eph.len(), "Same file size");
     }
 
     // Chi-squared test on key blob bytes from real files
-    let real_key_bytes: Vec<u8> = real_files.iter()
-        .flat_map(|f| f[25..25+40].to_vec())
+    let real_key_bytes: Vec<u8> = real_files
+        .iter()
+        .flat_map(|f| f[25..25 + 40].to_vec())
         .collect();
     let mut real_counts = [0u64; 256];
-    for &b in &real_key_bytes { real_counts[b as usize] += 1; }
+    for &b in &real_key_bytes {
+        real_counts[b as usize] += 1;
+    }
     let total_real = real_key_bytes.len() as f64;
     let expected_real = total_real / 256.0;
-    let chi_sq_real: f64 = real_counts.iter()
-        .map(|&c| { let d = c as f64 - expected_real; d * d / expected_real })
+    let chi_sq_real: f64 = real_counts
+        .iter()
+        .map(|&c| {
+            let d = c as f64 - expected_real;
+            d * d / expected_real
+        })
         .sum();
 
     println!("Chi-squared (real key blobs): {:.2}", chi_sq_real);
-    assert!(chi_sq_real < 400.0, "Key blob bytes non-uniform! chi²={}", chi_sq_real);
+    assert!(
+        chi_sq_real < 400.0,
+        "Key blob bytes non-uniform! chi²={}",
+        chi_sq_real
+    );
 }
 
 /// Test 2: Salt uniqueness verification
@@ -62,7 +82,10 @@ fn salt_uniqueness() {
     let mut salts = Vec::new();
     for _ in 0..10000 {
         let salt = generate_salt();
-        assert!(!salts.contains(&salt), "SALT COLLISION! Should never happen.");
+        assert!(
+            !salts.contains(&salt),
+            "SALT COLLISION! Should never happen."
+        );
         salts.push(salt);
     }
     println!("Generated 10000 unique salts — no collisions.");
@@ -82,17 +105,26 @@ fn known_plaintext_resistance() {
     let known_prefix = b"SECRET: The code is ";
     let known_len = known_prefix.len();
     let recovered_key_prefix: Vec<u8> = parsed.ciphertext[..known_len]
-        .iter().zip(known_prefix.iter()).map(|(c, p)| c ^ p).collect();
+        .iter()
+        .zip(known_prefix.iter())
+        .map(|(c, p)| c ^ p)
+        .collect();
 
     // Verify the known part matches
     let computed_known: Vec<u8> = parsed.ciphertext[..known_len]
-        .iter().zip(recovered_key_prefix.iter()).map(|(c, k)| c ^ k).collect();
+        .iter()
+        .zip(recovered_key_prefix.iter())
+        .map(|(c, k)| c ^ k)
+        .collect();
     assert_eq!(computed_known, known_prefix);
 
     // But the remaining bytes are NOT recoverable (OTP property)
     let unknown_ct = &parsed.ciphertext[known_len..];
     println!("Known plaintext reveals only {known_len} bytes of key.");
-    println!("Remaining {} bytes stay completely unknown.", unknown_ct.len());
+    println!(
+        "Remaining {} bytes stay completely unknown.",
+        unknown_ct.len()
+    );
 }
 
 /// Test 4: Check if repudiate creates detectable patterns in the key_blob
@@ -106,20 +138,38 @@ fn repudiate_no_detectable_pattern() {
 
     let result = encrypt(real_msg, pw_real, &params);
     let parsed = parse_eph(&result.eph_file).unwrap();
-    let otp_key_real: Vec<u8> = parsed.ciphertext.iter()
-        .zip(real_msg.iter()).map(|(c, p)| c ^ p).collect();
-    let keystream_real: Vec<u8> = parsed.key_blob.iter()
-        .zip(otp_key_real.iter()).map(|(b, k)| b ^ k).collect();
+    let otp_key_real: Vec<u8> = parsed
+        .ciphertext
+        .iter()
+        .zip(real_msg.iter())
+        .map(|(c, p)| c ^ p)
+        .collect();
+    let keystream_real: Vec<u8> = parsed
+        .key_blob
+        .iter()
+        .zip(otp_key_real.iter())
+        .map(|(b, k)| b ^ k)
+        .collect();
 
     let fake_eph = repudiate_eph(&result.eph_file, fake_msg, pw_fake, &params).unwrap();
     let fake_parsed = parse_eph(&fake_eph).unwrap();
-    let otp_key_fake: Vec<u8> = fake_parsed.ciphertext.iter()
-        .zip(fake_msg.iter()).map(|(c, p)| c ^ p).collect();
-    let keystream_fake: Vec<u8> = fake_parsed.key_blob.iter()
-        .zip(otp_key_fake.iter()).map(|(b, k)| b ^ k).collect();
+    let otp_key_fake: Vec<u8> = fake_parsed
+        .ciphertext
+        .iter()
+        .zip(fake_msg.iter())
+        .map(|(c, p)| c ^ p)
+        .collect();
+    let keystream_fake: Vec<u8> = fake_parsed
+        .key_blob
+        .iter()
+        .zip(otp_key_fake.iter())
+        .map(|(b, k)| b ^ k)
+        .collect();
 
-    assert_ne!(keystream_real, keystream_fake,
-        "Different passwords should produce different AES-CTR keystreams");
+    assert_ne!(
+        keystream_real, keystream_fake,
+        "Different passwords should produce different AES-CTR keystreams"
+    );
     println!("Real and fake keystreams are different ✓");
 }
 
@@ -175,8 +225,11 @@ fn argon2_timing_consistency() {
     println!("Avg timing wrong:   {:.0}ns", avg_wrong);
     println!("Ratio: {:.2}", ratio);
 
-    assert!(ratio > 0.5 && ratio < 2.0,
-        "Large timing discrepancy: ratio={}", ratio);
+    assert!(
+        ratio > 0.5 && ratio < 2.0,
+        "Large timing discrepancy: ratio={}",
+        ratio
+    );
 }
 
 /// Test 7: Empty password edge case
@@ -205,8 +258,12 @@ fn max_size_boundaries() {
         let result = encrypt(&msg, b"pw", &params);
         let decrypted = decrypt(&result.eph_file, b"pw", &params).unwrap();
         assert_eq!(decrypted, msg, "Failed at size {}", size);
-        assert_eq!(result.eph_file.len(), if size == 0 { 25 } else { 25 + 2 * size },
-            "Wrong file size at message size {}", size);
+        assert_eq!(
+            result.eph_file.len(),
+            if size == 0 { 25 } else { 25 + 2 * size },
+            "Wrong file size at message size {}",
+            size
+        );
     }
 }
 
@@ -265,10 +322,17 @@ fn repudiation_detectable_only_with_original() {
 
     // XOR of key blobs should NOT equal XOR of plaintexts
     // (AES-CTR keystreams differ for different passwords)
-    let xored: Vec<u8> = orig_parsed.key_blob.iter()
-        .zip(rep_parsed.key_blob.iter()).map(|(a, b)| a ^ b).collect();
+    let xored: Vec<u8> = orig_parsed
+        .key_blob
+        .iter()
+        .zip(rep_parsed.key_blob.iter())
+        .map(|(a, b)| a ^ b)
+        .collect();
     let plaintext_xor: Vec<u8> = real.iter().zip(fake.iter()).map(|(a, b)| a ^ b).collect();
-    assert_ne!(xored, plaintext_xor, "Key blob XOR leaks nothing about plaintexts");
+    assert_ne!(
+        xored, plaintext_xor,
+        "Key blob XOR leaks nothing about plaintexts"
+    );
 
     println!("Key blob XOR leaks nothing about plaintexts ✓");
 }

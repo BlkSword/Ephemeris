@@ -112,11 +112,7 @@ pub struct EncryptResult {
 /// // result.eph_file — the combined file
 /// // result.key_file — standalone key, can be stored separately
 /// ```
-pub fn encrypt(
-    plaintext: &[u8],
-    password: &[u8],
-    params: &Argon2Params,
-) -> EncryptResult {
+pub fn encrypt(plaintext: &[u8], password: &[u8], params: &Argon2Params) -> EncryptResult {
     let salt = generate_salt();
 
     // Layer 1: OTP encryption
@@ -159,12 +155,11 @@ pub fn decrypt(
     let otp_key = unwrap_key(parsed.key_blob, password, &parsed.salt, params)
         .expect("Argon2id key derivation should not fail with valid params");
 
-    // OTP decrypt
-    otp::otp_decrypt(parsed.ciphertext, &otp_key)
-        .map_err(|_| FormatError::LengthMismatch {
-            key_len: otp_key.len(),
-            ct_len: parsed.ciphertext.len(),
-        })
+    // OTP decrypt in place, reusing the OTP key buffer as the plaintext buffer
+    otp::otp_decrypt_in_place(parsed.ciphertext, otp_key).map_err(|_| FormatError::LengthMismatch {
+        key_len: parsed.key_blob.len(),
+        ct_len: parsed.ciphertext.len(),
+    })
 }
 
 /// Repudiate an `.eph` file: replace the key blob so that decrypting with
@@ -312,7 +307,11 @@ mod tests {
 
     #[test]
     fn decrypt_malformed_file_returns_err() {
-        let result = decrypt(b"not an eph file at all", b"pw", &Argon2Params::low_memory());
+        let result = decrypt(
+            b"not an eph file at all",
+            b"pw",
+            &Argon2Params::low_memory(),
+        );
         assert!(result.is_err());
     }
 

@@ -158,6 +158,14 @@ See [`docs/threat-model.md`](docs/threat-model.md)
 4. Hide files with innocuous names
 5. Pair with full-disk encryption (VeraCrypt)
 
+## Performance Optimizations
+
+- **Chunked XOR**: OTP encryption/decryption processes data in 8-byte (`u64`) chunks to reduce loop overhead and help the compiler auto-vectorize the hot path.
+- **In-place decryption**: `decrypt` reuses the unwrapped OTP key buffer as the plaintext buffer, eliminating one message-length heap allocation.
+- **In-place repudiation**: `repudiate` computes the fake key and wraps it in place via `wrap_key_inplace`, avoiding the extra `key.to_vec()` copy.
+
+> Note: overall latency is still dominated by the Argon2id KDF. These optimizations mainly reduce memory usage and peak pressure for large files.
+
 ## Building
 
 ```bash

@@ -9,8 +9,8 @@
 //! that is indistinguishable from a "real" key blob.
 
 use crate::keywrap;
+use crate::otp;
 use crate::params::Argon2Params;
-use zeroize::Zeroize;
 
 /// Generate a fake key blob for deniability.
 ///
@@ -47,20 +47,14 @@ pub fn repudiate(
         fake_plaintext.len()
     );
 
-    // K_fake = C ⊕ P_fake
-    let mut fake_key: Vec<u8> = ciphertext
-        .iter()
-        .zip(fake_plaintext.iter())
-        .map(|(c, p)| c ^ p)
-        .collect();
+    // K_fake = C ⊕ P_fake, computed in place to avoid an extra allocation.
+    // The buffer is then wrapped in place, so the raw fake key never persists
+    // beyond this function call.
+    let mut fake_key = ciphertext.to_vec();
+    otp::xor_in_place(&mut fake_key, fake_plaintext);
 
-    // Wrap the fake key with the fake password
-    let result = keywrap::wrap_key(&fake_key, fake_password, salt, params);
-
-    // Zeroize the fake OTP key after wrapping
-    fake_key.zeroize();
-
-    result
+    keywrap::wrap_key_inplace(&mut fake_key, fake_password, salt, params)?;
+    Ok(fake_key)
 }
 
 #[cfg(test)]

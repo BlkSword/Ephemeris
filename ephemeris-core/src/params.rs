@@ -67,12 +67,8 @@ impl Argon2Params {
         password: &[u8],
         salt: &[u8; 16],
     ) -> Result<[u8; 48], argon2::Error> {
-        let argon2_params = argon2::Params::new(
-            self.memory_cost,
-            self.time_cost,
-            self.parallelism,
-            Some(48),
-        )?;
+        let argon2_params =
+            argon2::Params::new(self.memory_cost, self.time_cost, self.parallelism, Some(48))?;
         let argon2 = argon2::Argon2::new(
             argon2::Algorithm::Argon2id,
             argon2::Version::V0x13,
