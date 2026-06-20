@@ -336,6 +336,23 @@ fn base64_decode(input: &str) -> Result<Vec<u8>> {
     Ok(out)
 }
 
+/// Plain base64 text encode (no armor header/footer), wrapped at 64 chars.
+fn text_encode(data: &[u8]) -> String {
+    let b64 = base64_encode(data);
+    let mut out = String::with_capacity(b64.len() + b64.len() / 64 + 1);
+    for chunk in b64.as_bytes().chunks(64) {
+        out.push_str(std::str::from_utf8(chunk).unwrap());
+        out.push('\n');
+    }
+    out
+}
+
+/// Plain base64 text decode (no armor header/footer).
+fn text_decode(text: &str) -> Result<Vec<u8>> {
+    let b64: String = text.chars().filter(|c| !c.is_whitespace()).collect();
+    base64_decode(&b64)
+}
+
 /// Securely erase a file: overwrite 3x with random, then delete.
 fn shred_file(path: &str) -> Result<()> {
     let meta = fs::metadata(path).with_context(|| format!("cannot stat file for shred: {path}"))?;
@@ -392,37 +409,78 @@ fn cmd_encrypt(a: args::EncryptArgs) -> Result<()> {
     let mut password = read_password_confirm(&a.password, "Encryption password: ")?;
     let params = make_params(&a.argon2);
 
+    // Validate output options
+    let has_combined = a.output.is_some();
+    let has_key = a.key_file.is_some();
+    let has_cipher = a.cipher_file.is_some();
+    if !(has_combined || (has_key && has_cipher)) {
+        bail!("must specify output file or both --key-file and --cipher-file");
+    }
+    if has_cipher && !has_key {
+        bail!("--cipher-file requires --key-file");
+    }
+
     eprintln!("Encrypting {}...", human_size(plen));
     let result = encrypt(&plaintext, &password, &params);
     password.zeroize();
 
-    let output_data = if a.armor || a.output == "-" {
-        armor_encode(&result.eph_file).into_bytes()
-    } else {
-        result.eph_file.clone()
-    };
+    // Combined .eph output
+    if let Some(ref output) = a.output {
+        let eph_data = if a.armor || output == "-" {
+            armor_encode(&result.eph_file).into_bytes()
+        } else if a.text {
+            text_encode(&result.eph_file).into_bytes()
+        } else {
+            result.eph_file.clone()
+        };
 
-    write_output(&a.output, &output_data, a.force)?;
+        write_output(output, &eph_data, a.force)?;
 
-    if a.armor {
-        eprintln!(
-            "✓ Encrypted {} → '{}' (armored, {} chars)",
-            human_size(plen),
-            a.output,
-            output_data.len()
-        );
-    } else {
-        eprintln!(
-            "✓ Encrypted {} → '{}' (.eph, {})",
-            human_size(plen),
-            a.output,
-            human_size(result.eph_file.len())
-        );
+        if a.armor || output == "-" {
+            eprintln!(
+                "✓ Encrypted {} → '{}' (armored, {} chars)",
+                human_size(plen),
+                output,
+                eph_data.len()
+            );
+        } else if a.text {
+            eprintln!(
+                "✓ Encrypted {} → '{}' (text, {} chars)",
+                human_size(plen),
+                output,
+                eph_data.len()
+            );
+        } else {
+            eprintln!(
+                "✓ Encrypted {} → '{}' (.eph, {})",
+                human_size(plen),
+                output,
+                human_size(result.eph_file.len())
+            );
+        }
     }
 
+    // Standalone key file
     if let Some(ref key_path) = a.key_file {
-        write_output(key_path, &result.key_file, a.force)?;
+        let key_data = if a.text {
+            text_encode(&result.key_file).into_bytes()
+        } else {
+            result.key_file.clone()
+        };
+        write_output(key_path, &key_data, a.force)?;
         eprintln!("✓ Key file → '{}'", key_path);
+    }
+
+    // Standalone ciphertext file
+    if let Some(ref cipher_path) = a.cipher_file {
+        let parsed = parse_eph(&result.eph_file).context("internal error: failed to parse .eph")?;
+        let cipher_data = if a.text {
+            text_encode(parsed.ciphertext).into_bytes()
+        } else {
+            parsed.ciphertext.to_vec()
+        };
+        write_output(cipher_path, &cipher_data, a.force)?;
+        eprintln!("✓ Ciphertext file → '{}'", cipher_path);
     }
 
     if a.shred && a.input != "-" {
@@ -435,14 +493,38 @@ fn cmd_encrypt(a: args::EncryptArgs) -> Result<()> {
 }
 
 fn cmd_decrypt(a: args::DecryptArgs) -> Result<()> {
-    let raw = read_input(&a.input)?;
+    // Split mode: input is a ciphertext file and a .key file is required.
+    let eph_data = if a.split {
+        let key_file = a.key_file.as_ref().context("--split requires --key-file")?;
 
-    let eph_data = if a.armor {
-        let text = String::from_utf8(raw).context("armored input must be valid UTF-8 text")?;
-        armor_decode(&text)?
+        let mut cipher_raw = read_input(&a.input)?;
+        if a.text {
+            let text = String::from_utf8(cipher_raw)
+                .context("ciphertext file must be valid UTF-8 text in --text mode")?;
+            cipher_raw = text_decode(&text)?;
+        }
+
+        let mut key_raw = read_input(key_file)?;
+        if a.text {
+            let text = String::from_utf8(key_raw)
+                .context("key file must be valid UTF-8 text in --text mode")?;
+            key_raw = text_decode(&text)?;
+        }
+
+        let (salt, key_blob) =
+            parse_key(&key_raw).with_context(|| format!("invalid key file: {key_file}"))?;
+        build_eph(&salt, key_blob, &cipher_raw)
     } else {
-        // Auto-detect: try armor if data starts with '-'
-        if raw.starts_with(b"-----BEGIN EPHEMERIS-----") {
+        let raw = read_input(&a.input)?;
+
+        if a.armor {
+            let text = String::from_utf8(raw).context("armored input must be valid UTF-8 text")?;
+            armor_decode(&text)?
+        } else if a.text {
+            let text = String::from_utf8(raw).context("text input must be valid UTF-8")?;
+            text_decode(&text)?
+        } else if raw.starts_with(b"-----BEGIN EPHEMERIS-----") {
+            // Auto-detect armor for backward compatibility
             let text = String::from_utf8(raw).context("armored input must be valid UTF-8 text")?;
             armor_decode(&text)?
         } else {

@@ -11,7 +11,9 @@ use clap::{Parser, Subcommand, ValueHint};
 /// Examples:
 ///   eph encrypt secret.txt secret.eph
 ///   eph encrypt secret.txt secret.eph --armor   # base64 output
+///   eph encrypt secret.txt --key-file key.b64 --cipher-file cipher.b64 --text
 ///   eph decrypt secret.eph output.txt
+///   eph decrypt cipher.b64 output.txt --split --key-file key.b64 --text
 ///   eph repudiate secret.eph cover.eph fake.txt
 ///   eph genpass
 #[derive(Parser, Debug)]
@@ -59,15 +61,15 @@ pub struct PasswordOptions {
 
 #[derive(Debug, clap::Args)]
 pub struct Argon2Options {
-    /// Argon2id iterations [default: 2]
+    /// Argon2id iterations
     #[arg(short = 't', long = "time-cost", default_value = "2")]
     pub time_cost: u32,
 
-    /// Argon2id memory in KiB [default: 37888 (~37 MiB)]
+    /// Argon2id memory in KiB
     #[arg(short = 'm', long = "memory-cost", default_value = "37888")]
     pub memory_cost: u32,
 
-    /// Argon2id parallelism (threads) [default: 1]
+    /// Argon2id parallelism (threads)
     #[arg(short = 'j', long = "parallelism", default_value = "1")]
     pub parallelism: u32,
 }
@@ -82,15 +84,24 @@ pub struct EncryptArgs {
     #[arg(value_hint = ValueHint::FilePath)]
     pub input: String,
 
-    /// Output .eph file. Use '-' for stdout (implies --armor).
+    /// Output .eph file (combined format). Use '-' for stdout (implies --armor).
+    /// Optional if both --key-file and --cipher-file are provided.
     #[arg(value_hint = ValueHint::FilePath)]
-    pub output: String,
+    pub output: Option<String>,
 
     /// Also write a standalone .key file
     #[arg(long = "key-file", value_hint = ValueHint::FilePath)]
     pub key_file: Option<String>,
 
-    /// Output in base64 armor format (for email/chat sharing)
+    /// Also write a standalone ciphertext file (requires --key-file)
+    #[arg(long = "cipher-file", value_hint = ValueHint::FilePath)]
+    pub cipher_file: Option<String>,
+
+    /// Encode all output files as base64 text (for copy/paste)
+    #[arg(long = "text")]
+    pub text: bool,
+
+    /// Output combined .eph in base64 armor format (legacy, same as --text for .eph)
     #[arg(short = 'a', long = "armor")]
     pub armor: bool,
 
@@ -111,7 +122,8 @@ pub struct EncryptArgs {
 
 #[derive(Debug, clap::Args)]
 pub struct DecryptArgs {
-    /// Input .eph file (or armored text). Use '-' for stdin.
+    /// Input file. By default a .eph file; with --split it is the ciphertext file.
+    /// Use '-' for stdin.
     #[arg(value_hint = ValueHint::FilePath)]
     pub input: String,
 
@@ -119,7 +131,19 @@ pub struct DecryptArgs {
     #[arg(value_hint = ValueHint::FilePath)]
     pub output: String,
 
-    /// Input is base64 armored format
+    /// Read a standalone .key file instead of the key blob inside the .eph file
+    #[arg(long = "key-file", value_hint = ValueHint::FilePath)]
+    pub key_file: Option<String>,
+
+    /// Split mode: input is a standalone ciphertext file and --key-file is required
+    #[arg(long = "split")]
+    pub split: bool,
+
+    /// Treat input files as base64 text (for split mode or armor)
+    #[arg(long = "text")]
+    pub text: bool,
+
+    /// Input .eph is base64 armored format (legacy, same as --text for single-file mode)
     #[arg(short = 'a', long = "armor")]
     pub armor: bool,
 

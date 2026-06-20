@@ -91,6 +91,10 @@ eph encrypt secret.txt secret.eph --armor   # base64 armor (email/chat friendly)
 eph encrypt secret.txt secret.eph --shred   # securely erase original after encrypt
 eph gen-pass -n 6 -e                        # generate strong passphrase (6 words)
 eph decrypt msg.asc output.txt              # auto-detect binary or armor format
+
+# Split key/ciphertext + base64 text output (copy/paste or separate storage)
+eph encrypt secret.txt --key-file key.b64 --cipher-file cipher.b64 --text
+eph decrypt cipher.b64 output.txt --split --key-file key.b64 --text
 ```
 
 ## Security Properties
