@@ -93,7 +93,7 @@ key_blob[i] = otp_key[i] XOR AES256_CTR_block(aes_key, ctr_nonce + i/16)[i % 16]
 | Argon2 version | 0x13 |
 | Output length | 48 bytes (32 key + 16 nonce) |
 | Default time cost | 2 |
-| Default memory cost | 19456 KiB (~19 MiB) |
+| Default memory cost | 37888 KiB (~37 MiB) |
 | Default parallelism | 1 |
 | Key wrap cipher | AES-256-CTR |
 | CTR counter size | 128 bits, big-endian |

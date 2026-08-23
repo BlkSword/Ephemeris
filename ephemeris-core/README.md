@@ -7,8 +7,10 @@
 ```rust
 use ephemeris_core::*;
 
+let params = Argon2Params::default();
+
 // 加密
-let result = encrypt(b"私密消息", b"密码", &Argon2Params::default());
+let result = encrypt(b"私密消息", b"密码", &params);
 
 // 解密
 let pt = decrypt(&result.eph_file, b"密码", &params).unwrap();
