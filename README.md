@@ -465,6 +465,26 @@ cd ephemeris-python && pip install maturin && maturin develop && pytest
 
 ---
 
+## 便捷终端版 & 可视化版
+
+仓库内置了两款便捷工具，代码位于 `tools/eph_tools/`：
+
+- `eph_tui.py`：交互式终端菜单工具，支持文本/文件加解密、抵赖、信息查看、密码生成。
+- `eph_gui.py`：Tkinter 桌面可视化工具，提供图形界面，点击即可完成加解密。
+
+依赖 Python 3.8+ 和可运行的 `eph` CLI：
+
+```bash
+cargo build --release -p eph
+
+python tools/eph_tools/eph_tui.py   # 终端版
+python tools/eph_tools/eph_gui.py   # 可视化版
+```
+
+详见 [`tools/eph_tools/README.md`](tools/eph_tools/README.md)。
+
+---
+
 ## 算法原创性与相关研究
 
 ### 结论

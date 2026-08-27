@@ -414,6 +414,26 @@ cd ephemeris-python && pip install maturin && maturin develop && pytest
 
 ---
 
+## Convenient Terminal & GUI Tools
+
+The repository includes convenience tools under `tools/eph_tools/`:
+
+- `eph_tui.py`: interactive terminal menu for text/file encryption, decryption, repudiation, info and password generation.
+- `eph_gui.py`: Tkinter desktop GUI for the same operations.
+
+They require Python 3.8+ and a working `eph` CLI:
+
+```bash
+cargo build --release -p eph
+
+python tools/eph_tools/eph_tui.py   # terminal
+python tools/eph_tools/eph_gui.py   # GUI
+```
+
+See [`tools/eph_tools/README.md`](tools/eph_tools/README.md).
+
+---
+
 ## Algorithm Provenance and Originality
 
 ### Conclusion
