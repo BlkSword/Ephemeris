@@ -99,7 +99,13 @@ def decrypt_text(ciphertext_text: str, password: str) -> str:
         args.insert(3, "--text")
 
     proc = run_eph(args, input_data=data)
-    return proc.stdout.decode("utf-8")
+    try:
+        return proc.stdout.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise EphToolError(
+            "解密结果不是有效的 UTF-8 文本。"
+            "可能原因：密码错误，或加密内容本身不是文本。"
+        ) from exc
 
 
 def encrypt_file(
